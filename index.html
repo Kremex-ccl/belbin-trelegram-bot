@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Тест Белбина</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 500px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            padding: 25px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+        }
+        .screen { display: none; }
+        .screen.active { display: block; animation: fadeIn 0.5s; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        
+        h1 { color: #333; text-align: center; margin-bottom: 20px; }
+        .question { margin: 25px 0; }
+        .options { margin: 20px 0; }
+        .option {
+            padding: 15px;
+            margin: 10px 0;
+            border: 2px solid #e0e0e0;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .option:hover { border-color: #667eea; background: #f8f9ff; }
+        .option.selected { border-color: #4caf50; background: #e8f5e9; }
+        
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 14px 30px;
+            border-radius: 25px;
+            font-size: 16px;
+            cursor: pointer;
+            width: 100%;
+            font-weight: bold;
+            margin-top: 20px;
+        }
+        
+        .result-item {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 12px;
+            margin: 10px 0;
+            border-left: 4px solid #667eea;
+        }
+        
+        .progress {
+            height: 8px;
+            background: #e0e0e0;
+            border-radius: 4px;
+            margin: 20px 0;
+            overflow: hidden;
+        }
+        .progress-bar {
+            height: 100%;
+            background: #4caf50;
+            transition: width 0.3s;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Экран приветствия -->
+        <div id="welcome" class="screen active">
+            <h1>🧩 Тест Белбина</h1>
+            <p>Определите ваши командные роли за 5 минут!</p>
+            <div style="margin: 30px 0;">
+                <p>📊 <b>Определит 9 ролей:</b></p>
+                <p>• Исполнитель • Координатор • Мотиватор</p>
+                <p>• Генератор • Исследователь • Оценщик</p>
+                <p>• Дипломат • Завершающий • Специалист</p>
+            </div>
+            <button onclick="startTest()">Начать тест</button>
+        </div>
+        
+        <!-- Экран теста -->
+        <div id="test" class="screen">
+            <div class="progress">
+                <div id="progressBar" class="progress-bar" style="width: 0%"></div>
+            </div>
+            <div id="questionContainer"></div>
+            <div id="optionsContainer" class="options"></div>
+            <button id="nextBtn" onclick="nextQuestion()">Далее</button>
+        </div>
+        
+        <!-- Экран результатов -->
+        <div id="results" class="screen">
+            <h1>🎯 Ваши результаты</h1>
+            <div id="resultsContainer"></div>
+            <button onclick="sendToTelegram()">📤 Отправить в Telegram</button>
+            <button onclick="location.reload()" style="background: #6c757d; margin-top: 10px;">🔄 Пройти еще раз</button>
+        </div>
+    </div>
+
+    <script>
+        // Упрощенный тест (7 вопросов)
+        const questions = [
+            {
+                text: "В команде я обычно:",
+                options: [
+                    {text: "Генерирую идеи", roles: {"Генератор": 2}},
+{text: "Организую работу", roles: {"Координатор": 2}},
+                    {text: "Выполняю задачи", roles: {"Исполнитель": 2}},
+                    {text: "Анализирую решения", roles: {"Оценщик": 2}}
+                ]
+            },
+            {
+                text: "Моя сильная сторона:",
+                options: [
+                    {text: "Творческий подход", roles: {"Генератор": 2}},
+                    {text: "Лидерские качества", roles: {"Координатор": 2}},
+                    {text: "Надежность", roles: {"Исполнитель": 2}},
+                    {text: "Внимание к деталям", roles: {"Завершающий": 2}}
+                ]
+            },
+            {
+                text: "В конфликте я:",
+                options: [
+                    {text: "Ищу компромисс", roles: {"Дипломат": 2}},
+                    {text: "Анализирую причины", roles: {"Оценщик": 2}},
+                    {text: "Предлагаю решение", roles: {"Координатор": 2}},
+                    {text: "Сохраняю спокойствие", roles: {"Исполнитель": 2}}
+                ]
+            },
+            {
+                text: "Лучше всего я умею:",
+                options: [
+                    {text: "Вдохновлять других", roles: {"Мотиватор": 2}},
+                    {text: "Находить ресурсы", roles: {"Исследователь": 2}},
+                    {text: "Глубоко разбираться в теме", roles: {"Специалист": 2}},
+                    {text: "Контролировать качество", roles: {"Завершающий": 2}}
+                ]
+            },
+            {
+                text: "При принятии решений:",
+                options: [
+                    {text: "Рассматриваю все варианты", roles: {"Оценщик": 2}},
+                    {text: "Доверяю интуиции", roles: {"Генератор": 2}},
+                    {text: "Консультируюсь с командой", roles: {"Дипломат": 2}},
+                    {text: "Слежу за выполнением", roles: {"Исполнитель": 2}}
+                ]
+            },
+            {
+                text: "Для меня важно:",
+                options: [
+                    {text: "Инновации и новизна", roles: {"Исследователь": 2}},
+                    {text: "Гармония в коллективе", roles: {"Дипломат": 2}},
+                    {text: "Результат и эффективность", roles: {"Мотиватор": 2}},
+                    {text: "Процесс и порядок", roles: {"Завершающий": 2}}
+                ]
+            },
+            {
+                text: "В незнакомой ситуации:",
+                options: [
+                    {text: "Изучаю информацию", roles: {"Специалист": 2}},
+                    {text: "Ищу поддержку", roles: {"Дипломат": 2}},
+                    {text: "Действую решительно", roles: {"Мотиватор": 2}},
+                    {text: "Анализирую риски", roles: {"Оценщик": 2}}
+                ]
+            }
+        ];
+
+        const roleDescriptions = {
+            "Исполнитель": "Надежный и практичный. Превращает идеи в действия.",
+            "Координатор": "Лидер и организатор. Направляет команду к цели.",
+            "Мотиватор": "Энергичный и динамичный. Преодолевает препятствия.",
+            "Генератор": "Креативный и инновационный. Генерирует идеи.",
+            "Исследователь": "Коммуникабельный. Ищет новые возможности.",
+            "Оценщик": "Аналитик. Взвешивает решения стратегически.",
+            "Дипломат": "Чуткий и дипломатичный. Создает гармонию.",
+            "Завершающий": "Внимательный к деталям. Контролирует качество.",
+            "Специалист": "Эксперт. Обладает глубокими знаниями."
+        };
+
+        let currentQuestion = 0;
+        let answers = [];
+        let scores = {
+            "Исполнитель": 0, "Координатор": 0, "Мотиватор": 0,
+            "Генератор": 0, "Исследователь": 0, "Оценщик": 0,
+            "Дипломат": 0, "Завершающий": 0, "Специалист": 0
+        };
+
+        // Инициализация Telegram Web App
+        let tg = window.Telegram.WebApp;
+        tg.expand();
+        tg.ready();
+
+        function startTest() {
+            document.getElementById('welcome').classList.remove('active');
+            document.getElementById('test').classList.
+add('active');
+            showQuestion(0);
+        }
+
+        function showQuestion(index) {
+            const q = questions[index];
+            
+            // Обновляем прогресс
+            const progress = ((index + 1) / questions.length) * 100;
+            document.getElementById('progressBar').style.width = ${progress}%;
+            
+            // Показываем вопрос
+            document.getElementById('questionContainer').innerHTML = `
+                <div class="question">
+                    <h3>Вопрос ${index + 1} из ${questions.length}</h3>
+                    <p>${q.text}</p>
+                </div>
+            `;
+            
+            // Показываем варианты
+            const optionsContainer = document.getElementById('optionsContainer');
+            optionsContainer.innerHTML = '';
+            
+            q.options.forEach((option, i) => {
+                const div = document.createElement('div');
+                div.className = 'option' + (answers[index] === i ? ' selected' : '');
+                div.textContent = option.text;
+                div.onclick = () => selectAnswer(index, i);
+                optionsContainer.appendChild(div);
+            });
+            
+            // Обновляем кнопку
+            document.getElementById('nextBtn').textContent = 
+                index === questions.length - 1 ? 'Завершить тест' : 'Далее';
+        }
+
+        function selectAnswer(qIndex, aIndex) {
+            answers[qIndex] = aIndex;
+            showQuestion(qIndex);
+        }
+
+        function nextQuestion() {
+            if (answers[currentQuestion] === undefined) {
+                alert('Пожалуйста, выберите вариант ответа');
+                return;
+            }
+            
+            if (currentQuestion < questions.length - 1) {
+                currentQuestion++;
+                showQuestion(currentQuestion);
+            } else {
+                calculateResults();
+            }
+        }
+
+        function calculateResults() {
+            // Сбрасываем счет
+            for (let role in scores) scores[role] = 0;
+            
+            // Подсчитываем баллы
+            answers.forEach((answerIndex, qIndex) => {
+                if (answerIndex !== undefined) {
+                    const option = questions[qIndex].options[answerIndex];
+                    for (let role in option.roles) {
+                        if (scores[role] !== undefined) {
+                            scores[role] += option.roles[role];
+                        }
+                    }
+                }
+            });
+            
+            showResults();
+        }
+
+        function showResults() {
+            document.getElementById('test').classList.remove('active');
+            document.getElementById('results').classList.add('active');
+            
+            // Сортируем результаты
+            const sortedResults = Object.entries(scores)
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 3);
+            
+            const resultsHTML = sortedResults.map(([role, score], index) => {
+                const medals = ['🥇', '🥈', '🥉'];
+                return `
+                    <div class="result-item">
+                        <h3>${medals[index]} ${role} (${score} баллов)</h3>
+                        <p>${roleDescriptions[role]}</p>
+                    </div>
+                `;
+            }).join('');
+            
+            document.getElementById('resultsContainer').innerHTML = resultsHTML;
+        }
+
+        function sendToTelegram() {
+            // Формируем текст для отправки
+            const sortedResults = Object.entries(scores)
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 3);
+            
+            let resultText = "🎯 *Мои результаты теста Белбина:*\n\n";
+            
+            sortedResults.forEach(([role, score], index) => {
+                resultText += ${index + 1}. *${role}* - ${score} баллов\n;
+                resultText += ${roleDescriptions[role]}\n\n;
+            });
+            
+            resultText += "🧩 Пройти тест: https://ваш-ник.github.
+io/belbin-telegram-bot/";
+            
+            // Отправляем данные в Telegram
+            tg.sendData(JSON.stringify({
+                action: "test_results",
+                results: scores,
+                text: resultText
+            }));
+        }
+    </script>
+</body>
+</html>
